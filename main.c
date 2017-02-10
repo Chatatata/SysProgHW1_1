@@ -1,0 +1,175 @@
+//
+//  Bugra Ekuklu, Babil Ovunc Diler
+//  150120016, 150110803
+//
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+#define kBIT_WIDTH 8
+
+void generate_r(int *bin_buf, int bin_len, int *rule_buf, int *draw_buf);
+
+int fetch_rule_nr_f() {
+    char *rule_nr_buffer = (char *)malloc(sizeof(char) * 7);
+    memset(rule_nr_buffer, 0, sizeof(char) * 7);
+    fgets(rule_nr_buffer, 6, stdin);
+
+    int result = atoi(rule_nr_buffer);
+
+    free(rule_nr_buffer);
+
+    return result;
+}
+
+int fetch_num_generations_f() {
+    char *num_generations_buffer = (char *)malloc(sizeof(char) * 7);
+    memset(num_generations_buffer, 0, sizeof(char) * 7);
+    fgets(num_generations_buffer, 6, stdin);
+
+    int result = atoi(num_generations_buffer);
+
+    free(num_generations_buffer);
+
+    return result;
+}
+
+int pown_m_f(const int base, const int power) {
+    if (power >= 1) {
+        return base * pown_m_f(base, power - 1);
+    } else {
+        return 1;
+    }
+}
+
+void itoboolarr_f(int *rule_buf, int rule_nr) {
+    for (int i = kBIT_WIDTH - 1; i >= 0; --i) {
+        int x = rule_nr / pown_m_f(2, i);
+
+        rule_nr -= x * pown_m_f(2, i);
+
+        rule_buf[i] = (int)x;
+    }
+}
+
+int main(int argc, const char * argv[]) {
+    FILE *f_ptr = NULL;
+    int rule_nr = 0;
+    int num_generations = 0;
+
+    if (argc != 2) {
+        printf("input file not specified\n");
+        exit(1);
+    }
+
+    if (!(f_ptr = fopen(argv[1], "r"))) {
+        perror("file couldn't be opened");
+        exit(9);
+    }
+
+    printf("Reading binary buffer from file...");
+
+    int bin_buffer[BUFSIZ];
+    int draw_buffer[BUFSIZ];
+    int rule_buffer[8];
+    int bool_qty = 0;
+    int nl_flag = 0;
+
+    while (!feof(f_ptr)) {
+        char ch = getc(f_ptr);
+
+        if (ch == '\n' && nl_flag == 0) {
+            nl_flag = 1;
+            continue;
+        }
+
+        if (nl_flag == 0) continue;
+
+        if (bool_qty == BUFSIZ) {
+            perror("file too long");
+            exit(1);
+        }
+
+        switch (ch) {
+            case '\n':
+            case -1:
+                goto bailout;
+            case ' ':
+                continue;
+	        case '0':
+                bin_buffer[bool_qty++] = (int)0;
+                break;
+            case '1':
+                bin_buffer[bool_qty++] = (int)1;
+                break;
+            default:
+                perror("unexpected input sequence");
+                exit(1);
+        }
+    }
+
+bailout:
+    //  Release the file handle
+    fclose(f_ptr);
+
+    //  Fetch the rule number from stdin
+    printf("\nPlease enter the rule number in base 10: ");
+    rule_nr = fetch_rule_nr_f();
+    printf("\n");
+
+    //  Fetch the number of generations from stdin
+    printf("Please enter the number of generations in base 10: ");
+    num_generations = fetch_num_generations_f();
+    printf("\n");
+
+    itoboolarr_f(rule_buffer, rule_nr);
+
+    printf("Rule buffer           : ");
+
+    for (size_t i = 0; i < 8; i++) {
+        printf("%x", rule_buffer[i]);
+    }
+
+    printf("\n");
+
+    printf("Binary buffer         : ");
+
+    for (size_t i = 0; i < bool_qty; i++) {
+        printf("%x", bin_buffer[i]);
+    }
+
+    printf("\n");
+
+    printf("Binary buffer address : 0x%x\nBinary buffer length  : %d\nRule buffer address   : 0x%x\nDraw buffer address   : 0x%x\n", &bin_buffer, bool_qty, &rule_buffer, &draw_buffer);
+
+    printf("\n");
+
+    printf("Initial draw buffer   : ");
+
+    for (size_t i = 0; i < bool_qty; i++) {
+        printf("%x", draw_buffer[i]);
+    }
+
+    printf("\n\n");
+
+    for (size_t i = 0; i < num_generations; i++) {
+        generate_r(bin_buffer, bool_qty, rule_buffer, draw_buffer);
+
+        printf("Processed draw buffer : ");
+
+        for (size_t i = 0; i < bool_qty; i++) {
+            printf("%x", draw_buffer[i]);
+        }
+
+        memcpy(bin_buffer, draw_buffer, BUFSIZ);
+
+        printf("\n");
+    }
+
+    printf("\n");
+
+    return 0;
+}
